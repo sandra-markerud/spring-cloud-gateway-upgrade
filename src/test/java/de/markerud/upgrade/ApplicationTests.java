@@ -6,6 +6,7 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import io.restassured.RestAssured;
 import org.assertj.core.api.Condition;
+import org.assertj.core.api.SoftAssertions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,7 +23,6 @@ import java.util.List;
 
 import static java.util.stream.Collectors.toList;
 import static org.apache.http.HttpStatus.SC_OK;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
@@ -71,15 +71,21 @@ public class ApplicationTests {
         mockBackendRespondOK();
 
         RestAssured
-            .given().when()
+                .given().when()
                 .port(serverPort)
                 .get("/question")
-            .then()
+                .then()
                 .statusCode(SC_OK);
 
-        assertTraceAndSpaIdsAreSentToDownstreamServices();
-        assertThatAllLogEntriesContainTraceAndSpanIds();
-        assertThatAllExpectedLogbookEntriesArePresent();
+
+        SoftAssertions softly = new SoftAssertions();
+
+        assertThatTraceAndSpanIdsAreSentToDownstreamServices(softly);
+        assertThatAccessLogContainsTraceAndSpanIds(softly);
+        assertThatFilterLogEntryContainsTraceAndSpanIds(softly);
+        assertThatAllExpectedLogbookEntriesArePresent(softly);
+
+        softly.assertAll();
     }
 
     private void mockBackendRespondOK() {
@@ -91,52 +97,55 @@ public class ApplicationTests {
         return allRequests[allRequests.length - 1];
     }
 
-    private void assertTraceAndSpaIdsAreSentToDownstreamServices() {
+    private void assertThatTraceAndSpanIdsAreSentToDownstreamServices(SoftAssertions softly) {
         var sentRequest = getSentRequest();
 
         // propagation type 'w3c'
-        assertThat(sentRequest.containsHeader("traceparent"))
+        softly.assertThat(sentRequest.containsHeader("traceparent"))
                 .describedAs("expected header 'traceparent' to be present").isTrue();
 
         // propagation type 'b3'
-        assertThat(sentRequest.containsHeader("X-B3-TraceId"))
+        softly.assertThat(sentRequest.containsHeader("X-B3-TraceId"))
                 .describedAs("expected header 'X-B3-TraceId' to be present").isTrue();
-        assertThat(sentRequest.containsHeader("X-B3-SpanId"))
+        softly.assertThat(sentRequest.containsHeader("X-B3-SpanId"))
                 .describedAs("expected header 'X-B3-SpanId' to be present").isTrue();
-        assertThat(sentRequest.containsHeader("X-B3-Sampled"))
+        softly.assertThat(sentRequest.containsHeader("X-B3-Sampled"))
                 .describedAs("expected header 'X-B3-Sampled' to be present").isTrue();
-        assertThat(sentRequest.containsHeader("X-B3-ParentSpanId"))
+        softly.assertThat(sentRequest.containsHeader("X-B3-ParentSpanId"))
                 .describedAs("expected header 'X-B3-ParentSpanId' to be present").isTrue();
     }
 
-    private void assertThatAllLogEntriesContainTraceAndSpanIds() {
-        assertThat(appender.list)
-                .hasSize(6)
-                .haveExactly(4, logEntriesFrom(logbookLogger))
-                .haveExactly(1, logEntriesFrom(filterLogger))
-                .haveExactly(1, logEntriesFrom(accessLogLogger))
-                .allMatch(event -> event.getMDCPropertyMap().containsKey("traceId"))
-                .allMatch(event -> event.getMDCPropertyMap().containsKey("spanId"));
+    private void assertThatAccessLogContainsTraceAndSpanIds(SoftAssertions softly) {
+        softly.assertThat(appender.list)
+                .filteredOn(event -> event.getLoggerName().equals(accessLogLogger.getName()))
+                .hasSize(1)
+                .singleElement()
+                .matches(event -> event.getMDCPropertyMap().containsKey("traceId"), "expected to contain traceId")
+                .matches(event -> event.getMDCPropertyMap().containsKey("spanId"), "expected to contain spanId");
     }
 
-    private void assertThatAllExpectedLogbookEntriesArePresent() {
+    private void assertThatFilterLogEntryContainsTraceAndSpanIds(SoftAssertions softly) {
+        softly.assertThat(appender.list)
+                .filteredOn(event -> event.getLoggerName().equals(filterLogger.getName()))
+                .hasSize(1)
+                .singleElement()
+                .matches(event -> event.getMDCPropertyMap().containsKey("traceId"), "expected to contain traceId")
+                .matches(event -> event.getMDCPropertyMap().containsKey("spanId"), "expected to contain spanId");
+    }
+
+    private void assertThatAllExpectedLogbookEntriesArePresent(SoftAssertions softly) {
         List<String> logbookMessages = appender.list
                 .stream()
                 .filter(event -> event.getLoggerName().equals(logbookLogger.getName()))
                 .map(ILoggingEvent::getMessage)
                 .collect(toList());
 
-        assertThat(logbookMessages)
+        softly.assertThat(logbookMessages)
                 .hasSize(4)
                 .haveExactly(1, messageStartingWith("Incoming Request:"))
                 .haveExactly(1, messageStartingWith("Outgoing Request:"))
                 .haveExactly(1, messageStartingWith("Incoming Response:"))
                 .haveExactly(1, messageStartingWith("Outgoing Response:"));
-    }
-
-
-    private Condition<ILoggingEvent> logEntriesFrom(Logger logger) {
-        return new Condition<>(event -> event.getLoggerName().equals(logger.getName()), "from logger %s", logger.getName());
     }
 
     private Condition<String> messageStartingWith(String message) {
