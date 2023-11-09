@@ -1,0 +1,32 @@
+MOCK_BACKEND: http://localhost:1080
+
+local:
+  server:
+    port: 8080
+
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: answer_route
+          uri: ${MOCK_BACKEND}
+          predicates:
+            - Path=/question
+            - Method=GET
+
+  sleuth:
+    enabled: true
+    propagation:
+      type: b3,w3c
+    reactor:
+      instrumentation-type: decorate_queues
+
+logbook:
+  filter.enabled: true
+  format.style: http
+
+logging:
+  level:
+    org:
+      zalando:
+        logbook: TRACE

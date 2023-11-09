@@ -1,0 +1,17 @@
+[
+  {
+    "httpRequest": {
+      "path": "/.*"
+    },
+    "httpResponse": {
+      "statusCode": 200,
+      "reasonPhrase": "OK",
+      "headers": {
+        "Content-Type": [
+          "application/json"
+        ]
+      },
+      "body": "{\"question\":\"The Answer to the Ultimate Question of Life, the Universe, and Everything\",\"answer\":\"42\"}"
+    }
+  }
+]

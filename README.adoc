@@ -1,0 +1,22 @@
+= Rationale
+:toc:
+
+This project aims to show the problems with logging and tracing.
+
+== Getting started
+
+=== Build
+
+[source,bash]
+----
+mvn clean install
+----
+
+=== Running the application locally
+
+To locally run the application, use the following command:
+
+[source,bash]
+----
+mvn spring-boot:run "-Dreactor.netty.http.server.accessLogEnabled=true"
+----
