@@ -9,9 +9,9 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>de.markerud</groupId>
-    <artifactId>testapp</artifactId>
+    <artifactId>spring-cloud-gateway-upgrade</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>testapp</name>
+    <name>spring-cloud-gateway-upgrade</name>
     <description>Demo project for logging and tracing</description>
 
     <properties>

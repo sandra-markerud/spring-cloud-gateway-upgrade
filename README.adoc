@@ -1,11 +1,15 @@
-= Rationale
+= Spring Cloud Gateway Demo
 :toc:
 
-This project aims to show the problems with logging and tracing.
+== Rationale
+
+This project aims to show the problems we face with logging and tracing when upgrading to spring boot 3 in a reactive environment using netty.
 
 == Getting started
 
 === Build
+
+The 'master' branch contains the functioning spring-boot-2 version including a test that shows our expectations.
 
 [source,bash]
 ----
@@ -18,5 +22,22 @@ To locally run the application, use the following command:
 
 [source,bash]
 ----
-mvn spring-boot:run "-Dreactor.netty.http.server.accessLogEnabled=true"
+mvn spring-boot:run
+----
+
+For local tests, a mockserver can be started with the provided docker-compose file.
+It simulates a backend-service, this gateway is routing to.
+
+[source,bash]
+----
+docker compose -f ./docker/docker-compose.yaml up
+----
+
+The mockserver can be reached via http://localhost:1080 and exposes a dashboard to monitor all requests is available via http://localhost:1080/mockserver/dashboard[Mockserver Dashboard].
+
+This gateway exposes a route that can be called with
+
+[source,bash]
+----
+curl http://localhost:8080/question
 ----

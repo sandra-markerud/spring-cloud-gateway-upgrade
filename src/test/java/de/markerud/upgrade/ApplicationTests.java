@@ -1,4 +1,4 @@
-package de.markerud.testapp;
+package de.markerud.upgrade;
 
 
 import ch.qos.logback.classic.Logger;
@@ -71,10 +71,10 @@ public class ApplicationTests {
         mockBackendRespondOK();
 
         RestAssured
-                .given().when()
+            .given().when()
                 .port(serverPort)
-                .get("question")
-                .then()
+                .get("/question")
+            .then()
                 .statusCode(SC_OK);
 
         assertTraceAndSpaIdsAreSentToDownstreamServices();

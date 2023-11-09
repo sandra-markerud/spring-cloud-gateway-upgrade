@@ -1,4 +1,4 @@
-package de.markerud.testapp;
+package de.markerud.upgrade;
 
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;

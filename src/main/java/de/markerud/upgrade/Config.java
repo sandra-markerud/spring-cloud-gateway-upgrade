@@ -1,4 +1,4 @@
-package de.markerud.testapp;
+package de.markerud.upgrade;
 
 import brave.Tracer;
 import brave.http.HttpTracing;
