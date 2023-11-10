@@ -1,0 +1,14 @@
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+    <springProperty name="application_name" scope="context" source="spring.application.name"/>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+    <logger name="de.markerud" level="INFO"/>
+    <logger name="org.zalando.logbook.Logbook" level="TRACE"/>
+    <logger name="reactor.netty.http.server.AccessLog" level="INFO"/>
+
+</configuration>

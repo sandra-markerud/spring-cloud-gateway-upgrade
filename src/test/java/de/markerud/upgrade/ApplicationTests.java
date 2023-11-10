@@ -83,6 +83,7 @@ public class ApplicationTests {
         assertThatTraceAndSpanIdsAreSentToDownstreamServices(softly);
         assertThatAccessLogContainsTraceAndSpanIds(softly);
         assertThatFilterLogEntryContainsTraceAndSpanIds(softly);
+        assertThatLogbookLogEntriesContainsTraceAndSpanIds(softly);
         assertThatAllExpectedLogbookEntriesArePresent(softly);
 
         softly.assertAll();
@@ -120,8 +121,8 @@ public class ApplicationTests {
                 .filteredOn(event -> event.getLoggerName().equals(accessLogLogger.getName()))
                 .hasSize(1)
                 .singleElement()
-                .matches(event -> event.getMDCPropertyMap().containsKey("traceId"), "expected to contain traceId")
-                .matches(event -> event.getMDCPropertyMap().containsKey("spanId"), "expected to contain spanId");
+                .matches(event -> event.getMDCPropertyMap().containsKey("traceId"), "expected access log to contain traceId")
+                .matches(event -> event.getMDCPropertyMap().containsKey("spanId"), "expected access log to contain spanId");
     }
 
     private void assertThatFilterLogEntryContainsTraceAndSpanIds(SoftAssertions softly) {
@@ -129,8 +130,16 @@ public class ApplicationTests {
                 .filteredOn(event -> event.getLoggerName().equals(filterLogger.getName()))
                 .hasSize(1)
                 .singleElement()
-                .matches(event -> event.getMDCPropertyMap().containsKey("traceId"), "expected to contain traceId")
-                .matches(event -> event.getMDCPropertyMap().containsKey("spanId"), "expected to contain spanId");
+                .matches(event -> event.getMDCPropertyMap().containsKey("traceId"), "expected filter log to contain traceId")
+                .matches(event -> event.getMDCPropertyMap().containsKey("spanId"), "expected filter log to contain spanId");
+    }
+
+
+    private void assertThatLogbookLogEntriesContainsTraceAndSpanIds(SoftAssertions softly) {
+        softly.assertThat(appender.list)
+                .filteredOn(event -> event.getLoggerName().equals(logbookLogger.getName()))
+                .allMatch(event -> event.getMDCPropertyMap().containsKey("traceId"), "expected logbook log to contain traceId")
+                .allMatch(event -> event.getMDCPropertyMap().containsKey("spanId"), "expected logbook log to contain spanId");
     }
 
     private void assertThatAllExpectedLogbookEntriesArePresent(SoftAssertions softly) {
