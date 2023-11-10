@@ -1,7 +1,7 @@
 services:
 
   mock_server:
-    image: dockerhub.repo.x-tention.com/mockserver/mockserver:5.15.0
+    image: mockserver/mockserver:5.15.0
     container_name: mockserver
     volumes:
       - ./mockserver:/config
