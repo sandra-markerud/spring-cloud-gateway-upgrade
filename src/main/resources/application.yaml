@@ -27,6 +27,9 @@ logbook:
 
 logging:
   level:
-    org:
-      zalando:
-        logbook: TRACE
+    org.mockserver: WARN
+    org.org.springframework.security: WARN
+    org.springframework.cloud.gateway: WARN
+    org.zalando.logbook: TRACE
+    reactor.netty.http.client: DEBUG
+    reactor.netty.http.server: DEBUG
