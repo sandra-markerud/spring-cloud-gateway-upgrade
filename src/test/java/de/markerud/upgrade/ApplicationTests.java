@@ -38,6 +38,8 @@ public class ApplicationTests {
 
     private ListAppender<ILoggingEvent> appender;
 
+    private SoftAssertions softly;
+
     private final Logger filterLogger = (Logger) LoggerFactory.getLogger(LoggingFilter.class);
     private final Logger accessLogLogger = (Logger) LoggerFactory.getLogger(ACCESS_LOG_LOGGER_NAME);
     private final Logger logbookLogger = (Logger) LoggerFactory.getLogger(Logbook.class);
@@ -51,12 +53,14 @@ public class ApplicationTests {
     }
 
     @BeforeEach
-    void setupLogAppender() {
+    void setup() {
         appender = new ListAppender<>();
         appender.start();
         filterLogger.addAppender(appender);
         accessLogLogger.addAppender(appender);
         logbookLogger.addAppender(appender);
+
+        softly = new SoftAssertions();
     }
 
     @AfterEach
@@ -67,39 +71,68 @@ public class ApplicationTests {
     }
 
     @Test
-    void testLoggingAndTracing() {
-        mockBackendRespondOK();
+    void traceAndSpanIdsAppearInApplicationLogs() {
+        sendRequest();
 
-        RestAssured
-                .given().when()
-                .port(serverPort)
-                .get("/question")
-                .then()
-                .statusCode(SC_OK);
-
-
-        SoftAssertions softly = new SoftAssertions();
-
-        assertThatTraceAndSpanIdsAreSentToDownstreamServices(softly);
-        assertThatAccessLogContainsTraceAndSpanIds(softly);
-        assertThatFilterLogEntryContainsTraceAndSpanIds(softly);
-        assertThatLogbookLogEntriesContainsTraceAndSpanIds(softly);
-        assertThatAllExpectedLogbookEntriesArePresent(softly);
+        softly.assertThat(appender.list)
+                .filteredOn(event -> event.getLoggerName().equals(filterLogger.getName()))
+                .hasSize(1)
+                .singleElement()
+                .matches(event -> event.getMDCPropertyMap().containsKey("traceId"), "expected filter log to contain traceId")
+                .matches(event -> event.getMDCPropertyMap().containsKey("spanId"), "expected filter log to contain spanId");
 
         softly.assertAll();
     }
 
-    private void mockBackendRespondOK() {
-        mockBackend.when(request()).respond(response().withStatusCode(SC_OK));
+    @Test
+    void traceAndSpanIdsAppearInAccessLog() {
+        sendRequest();
+
+        softly.assertThat(appender.list)
+                .filteredOn(event -> event.getLoggerName().equals(accessLogLogger.getName()))
+                .hasSize(1)
+                .singleElement()
+                .matches(event -> event.getMDCPropertyMap().containsKey("traceId"), "expected access log to contain traceId")
+                .matches(event -> event.getMDCPropertyMap().containsKey("spanId"), "expected access log to contain spanId");
+
+        softly.assertAll();
     }
 
-    private HttpRequest getSentRequest() {
-        var allRequests = mockBackend.retrieveRecordedRequests(null);
-        return allRequests[allRequests.length - 1];
+    @Test
+    void traceAndSpanIdsAppearInZalandoLogbookLogs() {
+        sendRequest();
+
+        softly.assertThat(appender.list)
+                .filteredOn(event -> event.getLoggerName().equals(logbookLogger.getName()))
+                .allMatch(event -> event.getMDCPropertyMap().containsKey("traceId"), "expected logbook log to contain traceId")
+                .allMatch(event -> event.getMDCPropertyMap().containsKey("spanId"), "expected logbook log to contain spanId");
+
+        softly.assertAll();
     }
 
-    private void assertThatTraceAndSpanIdsAreSentToDownstreamServices(SoftAssertions softly) {
-        var sentRequest = getSentRequest();
+    @Test
+    void allZalandoLogbookLogsAreWritten() {
+        sendRequest();
+
+        List<String> logbookMessages = appender.list
+                .stream()
+                .filter(event -> event.getLoggerName().equals(logbookLogger.getName()))
+                .map(ILoggingEvent::getMessage)
+                .collect(toList());
+
+        softly.assertThat(logbookMessages)
+                .hasSize(4)
+                .haveExactly(1, messageStartingWith("Incoming Request:"))
+                .haveExactly(1, messageStartingWith("Outgoing Request:"))
+                .haveExactly(1, messageStartingWith("Incoming Response:"))
+                .haveExactly(1, messageStartingWith("Outgoing Response:"));
+
+        softly.assertAll();
+    }
+
+    @Test
+    void tracingHeadersAreSentToDownstreamServices() {
+        var sentRequest = sendRequest();
 
         // propagation type 'w3c'
         softly.assertThat(sentRequest.containsHeader("traceparent"))
@@ -114,47 +147,30 @@ public class ApplicationTests {
                 .describedAs("expected header 'X-B3-Sampled' to be present").isTrue();
         softly.assertThat(sentRequest.containsHeader("X-B3-ParentSpanId"))
                 .describedAs("expected header 'X-B3-ParentSpanId' to be present").isTrue();
+
+        softly.assertAll();
     }
 
-    private void assertThatAccessLogContainsTraceAndSpanIds(SoftAssertions softly) {
-        softly.assertThat(appender.list)
-                .filteredOn(event -> event.getLoggerName().equals(accessLogLogger.getName()))
-                .hasSize(1)
-                .singleElement()
-                .matches(event -> event.getMDCPropertyMap().containsKey("traceId"), "expected access log to contain traceId")
-                .matches(event -> event.getMDCPropertyMap().containsKey("spanId"), "expected access log to contain spanId");
+    private HttpRequest sendRequest() {
+        mockBackendRespondOK();
+
+        RestAssured
+                .given().when()
+                .port(serverPort)
+                .get("/question")
+                .then()
+                .statusCode(SC_OK);
+
+        return getSentRequest();
     }
 
-    private void assertThatFilterLogEntryContainsTraceAndSpanIds(SoftAssertions softly) {
-        softly.assertThat(appender.list)
-                .filteredOn(event -> event.getLoggerName().equals(filterLogger.getName()))
-                .hasSize(1)
-                .singleElement()
-                .matches(event -> event.getMDCPropertyMap().containsKey("traceId"), "expected filter log to contain traceId")
-                .matches(event -> event.getMDCPropertyMap().containsKey("spanId"), "expected filter log to contain spanId");
+    private void mockBackendRespondOK() {
+        mockBackend.when(request()).respond(response().withStatusCode(SC_OK));
     }
 
-
-    private void assertThatLogbookLogEntriesContainsTraceAndSpanIds(SoftAssertions softly) {
-        softly.assertThat(appender.list)
-                .filteredOn(event -> event.getLoggerName().equals(logbookLogger.getName()))
-                .allMatch(event -> event.getMDCPropertyMap().containsKey("traceId"), "expected logbook log to contain traceId")
-                .allMatch(event -> event.getMDCPropertyMap().containsKey("spanId"), "expected logbook log to contain spanId");
-    }
-
-    private void assertThatAllExpectedLogbookEntriesArePresent(SoftAssertions softly) {
-        List<String> logbookMessages = appender.list
-                .stream()
-                .filter(event -> event.getLoggerName().equals(logbookLogger.getName()))
-                .map(ILoggingEvent::getMessage)
-                .collect(toList());
-
-        softly.assertThat(logbookMessages)
-                .hasSize(4)
-                .haveExactly(1, messageStartingWith("Incoming Request:"))
-                .haveExactly(1, messageStartingWith("Outgoing Request:"))
-                .haveExactly(1, messageStartingWith("Incoming Response:"))
-                .haveExactly(1, messageStartingWith("Outgoing Response:"));
+    private HttpRequest getSentRequest() {
+        var allRequests = mockBackend.retrieveRecordedRequests(null);
+        return allRequests[allRequests.length - 1];
     }
 
     private Condition<String> messageStartingWith(String message) {
