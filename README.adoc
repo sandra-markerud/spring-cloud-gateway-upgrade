@@ -30,7 +30,7 @@ It simulates a backend-service, this gateway is routing to.
 
 [source,bash]
 ----
-docker compose -f ./docker/docker-compose.yaml up
+docker-compose -f ./docker/docker-compose.yaml up
 ----
 
 The mockserver can be reached via http://localhost:1080 and exposes a dashboard to monitor all requests is available via http://localhost:1080/mockserver/dashboard[Mockserver Dashboard].
