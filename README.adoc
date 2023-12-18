@@ -3,13 +3,13 @@
 
 == Rationale
 
-This project aims to show the problems we face with logging and tracing when upgrading to spring boot 3 in a reactive environment using netty.
+This project aims to show the problems we are facing with logging and tracing when upgrading to spring boot 3 in a reactive environment using netty.
 
 == Getting started
 
 === Build
 
-The 'master' branch contains the functioning spring-boot-2 version including a test that shows our expectations.
+The 'main' branch contains the functioning spring-boot-2 version including tests that show our expectations.
 
 [source,bash]
 ----
@@ -26,7 +26,7 @@ mvn spring-boot:run
 ----
 
 For local tests, a mockserver can be started with the provided docker-compose file.
-It simulates a backend-service, this gateway is routing to.
+It simulates a backend-service, that will be accessed by our application.
 
 [source,bash]
 ----
@@ -35,9 +35,16 @@ docker-compose -f ./docker/docker-compose.yaml up
 
 The mockserver can be reached via http://localhost:1080 and exposes a dashboard to monitor all requests is available via http://localhost:1080/mockserver/dashboard[Mockserver Dashboard].
 
-This gateway exposes a route that can be called with
+This application exposes a gateway route that can be called with
 
 [source,bash]
 ----
-curl http://localhost:8080/question
+curl http://localhost:8080/question-route
+----
+
+This application exposes a REST endpoint that can be called with
+
+[source,bash]
+----
+curl http://localhost:8080/question-controller
 ----
