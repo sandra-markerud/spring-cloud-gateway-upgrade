@@ -11,8 +11,10 @@ spring:
         - id: answer_route
           uri: ${MOCK_BACKEND}
           predicates:
-            - Path=/question
+            - Path=/question-route
             - Method=GET
+          filters:
+            - RewritePath=/question-route, /question
 
   sleuth:
     enabled: true
@@ -31,5 +33,5 @@ logging:
     org.org.springframework.security: WARN
     org.springframework.cloud.gateway: WARN
     org.zalando.logbook: TRACE
-    reactor.netty.http.client: DEBUG
-    reactor.netty.http.server: DEBUG
+#    reactor.netty.http.client: DEBUG
+#    reactor.netty.http.server: DEBUG

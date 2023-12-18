@@ -1,16 +1,13 @@
 package de.markerud.upgrade;
 
-
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
-import io.restassured.RestAssured;
-import org.assertj.core.api.Condition;
-import org.assertj.core.api.SoftAssertions;
+import de.markerud.upgrade.filter.LoggingFilter;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.RepeatedTest;
 import org.mockserver.client.MockServerClient;
 import org.mockserver.model.HttpRequest;
 import org.mockserver.springtest.MockServerTest;
@@ -19,10 +16,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.zalando.logbook.Logbook;
 
-import java.util.List;
-
-import static java.util.stream.Collectors.toList;
 import static org.apache.http.HttpStatus.SC_OK;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
@@ -30,7 +25,7 @@ import static org.springframework.boot.test.context.SpringBootTest.WebEnvironmen
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @MockServerTest("MOCK_BACKEND=http://localhost:${mockServerPort}")
 @SuppressWarnings("SpringBootApplicationProperties")
-public class ApplicationTests {
+public abstract class TestBase {
 
     private static final String ACCESS_LOG_LOGGER_NAME = "reactor.netty.http.server.AccessLog";
 
@@ -38,14 +33,12 @@ public class ApplicationTests {
 
     private ListAppender<ILoggingEvent> appender;
 
-    private SoftAssertions softly;
-
     private final Logger filterLogger = (Logger) LoggerFactory.getLogger(LoggingFilter.class);
     private final Logger accessLogLogger = (Logger) LoggerFactory.getLogger(ACCESS_LOG_LOGGER_NAME);
     private final Logger logbookLogger = (Logger) LoggerFactory.getLogger(Logbook.class);
 
     @LocalServerPort
-    private int serverPort = -1;
+    protected int serverPort = -1;
 
     @BeforeAll
     static void activateAccessLog() {
@@ -59,8 +52,6 @@ public class ApplicationTests {
         filterLogger.addAppender(appender);
         accessLogLogger.addAppender(appender);
         logbookLogger.addAppender(appender);
-
-        softly = new SoftAssertions();
     }
 
     @AfterEach
@@ -70,111 +61,103 @@ public class ApplicationTests {
         logbookLogger.detachAppender(appender);
     }
 
-    @Test
-    void traceAndSpanIdsAppearInApplicationLogs() {
+    @RepeatedTest(10)
+    void traceAndSpanIDsAppearInApplicationLogs() {
         sendRequest();
 
-        softly.assertThat(appender.list)
+        assertThat(appender.list)
                 .filteredOn(event -> event.getLoggerName().equals(filterLogger.getName()))
                 .hasSize(1)
                 .singleElement()
                 .matches(event -> event.getMDCPropertyMap().containsKey("traceId"), "expected filter log to contain traceId")
                 .matches(event -> event.getMDCPropertyMap().containsKey("spanId"), "expected filter log to contain spanId");
-
-        softly.assertAll();
     }
 
-    @Test
-    void traceAndSpanIdsAppearInAccessLog() {
+    @RepeatedTest(10)
+    void accessLogIsWritten() {
         sendRequest();
 
-        softly.assertThat(appender.list)
+        assertThat(appender.list)
+                .filteredOn(event -> event.getLoggerName().equals(accessLogLogger.getName()))
+                .hasSize(1);
+    }
+
+    @RepeatedTest(10)
+    void traceAndSpanIDsAppearInAccessLogs() {
+        sendRequest();
+
+        assertThat(appender.list)
                 .filteredOn(event -> event.getLoggerName().equals(accessLogLogger.getName()))
                 .hasSize(1)
                 .singleElement()
                 .matches(event -> event.getMDCPropertyMap().containsKey("traceId"), "expected access log to contain traceId")
                 .matches(event -> event.getMDCPropertyMap().containsKey("spanId"), "expected access log to contain spanId");
-
-        softly.assertAll();
     }
 
-    @Test
-    void traceAndSpanIdsAppearInZalandoLogbookLogs() {
+    @RepeatedTest(10)
+    void traceAndSpanIDsAppearInZalandoLogbookLogs() {
         sendRequest();
 
-        softly.assertThat(appender.list)
+        assertThat(appender.list)
                 .filteredOn(event -> event.getLoggerName().equals(logbookLogger.getName()))
                 .allMatch(event -> event.getMDCPropertyMap().containsKey("traceId"), "expected logbook log to contain traceId")
                 .allMatch(event -> event.getMDCPropertyMap().containsKey("spanId"), "expected logbook log to contain spanId");
-
-        softly.assertAll();
     }
 
-    @Test
+    @RepeatedTest(10)
     void allZalandoLogbookLogsAreWritten() {
         sendRequest();
 
-        List<String> logbookMessages = appender.list
+        assertThat(appender.list)
+                .filteredOn(event -> event.getLoggerName().equals(logbookLogger.getName()))
+                .hasSize(4);
+    }
+
+    @RepeatedTest(10)
+    void zalandoLogbookLogsAreWrittenInTheCorrectOrder() {
+        sendRequest();
+
+        var logbookMessages = appender.list
                 .stream()
                 .filter(event -> event.getLoggerName().equals(logbookLogger.getName()))
                 .map(ILoggingEvent::getMessage)
-                .collect(toList());
+                .toList();
 
-        softly.assertThat(logbookMessages)
-                .hasSize(4)
-                .haveExactly(1, messageStartingWith("Incoming Request:"))
-                .haveExactly(1, messageStartingWith("Outgoing Request:"))
-                .haveExactly(1, messageStartingWith("Incoming Response:"))
-                .haveExactly(1, messageStartingWith("Outgoing Response:"));
 
-        softly.assertAll();
+        assertThat(logbookMessages).hasSize(4);
+        assertThat(logbookMessages.get(0)).startsWith("Incoming Request:");
+        assertThat(logbookMessages.get(1)).startsWith("Outgoing Request:");
+        assertThat(logbookMessages.get(2)).startsWith("Incoming Response:");
+        assertThat(logbookMessages.get(3)).startsWith("Outgoing Response:");
     }
 
-    @Test
+    @RepeatedTest(10)
     void tracingHeadersAreSentToDownstreamServices() {
         var sentRequest = sendRequest();
 
         // propagation type 'w3c'
-        softly.assertThat(sentRequest.containsHeader("traceparent"))
+        assertThat(sentRequest.containsHeader("traceparent"))
                 .describedAs("expected header 'traceparent' to be present").isTrue();
 
         // propagation type 'b3'
-        softly.assertThat(sentRequest.containsHeader("X-B3-TraceId"))
+        assertThat(sentRequest.containsHeader("X-B3-TraceId"))
                 .describedAs("expected header 'X-B3-TraceId' to be present").isTrue();
-        softly.assertThat(sentRequest.containsHeader("X-B3-SpanId"))
+        assertThat(sentRequest.containsHeader("X-B3-SpanId"))
                 .describedAs("expected header 'X-B3-SpanId' to be present").isTrue();
-        softly.assertThat(sentRequest.containsHeader("X-B3-Sampled"))
+        assertThat(sentRequest.containsHeader("X-B3-Sampled"))
                 .describedAs("expected header 'X-B3-Sampled' to be present").isTrue();
-        softly.assertThat(sentRequest.containsHeader("X-B3-ParentSpanId"))
+        assertThat(sentRequest.containsHeader("X-B3-ParentSpanId"))
                 .describedAs("expected header 'X-B3-ParentSpanId' to be present").isTrue();
-
-        softly.assertAll();
     }
 
-    private HttpRequest sendRequest() {
-        mockBackendRespondOK();
+    protected abstract HttpRequest sendRequest();
 
-        RestAssured
-                .given().when()
-                .port(serverPort)
-                .get("/question")
-                .then()
-                .statusCode(SC_OK);
-
-        return getSentRequest();
-    }
-
-    private void mockBackendRespondOK() {
+    protected void mockBackendRespondOK() {
         mockBackend.when(request()).respond(response().withStatusCode(SC_OK));
     }
 
-    private HttpRequest getSentRequest() {
+    protected HttpRequest getSentRequest() {
         var allRequests = mockBackend.retrieveRecordedRequests(null);
         return allRequests[allRequests.length - 1];
     }
-
-    private Condition<String> messageStartingWith(String message) {
-        return new Condition<>(msg -> msg.startsWith(message), "starts with %s", message);
-    }
-
 }
