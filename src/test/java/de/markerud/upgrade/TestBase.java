@@ -5,7 +5,6 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import de.markerud.upgrade.filter.LoggingFilter;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.RepeatedTest;
 import org.mockserver.client.MockServerClient;
@@ -24,7 +23,7 @@ import static org.springframework.boot.test.context.SpringBootTest.WebEnvironmen
 
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @MockServerTest("MOCK_BACKEND=http://localhost:${mockServerPort}")
-@SuppressWarnings("SpringBootApplicationProperties")
+@SuppressWarnings({"SpringBootApplicationProperties", "unused"})
 public abstract class TestBase {
 
     private static final String ACCESS_LOG_LOGGER_NAME = "reactor.netty.http.server.AccessLog";
@@ -39,11 +38,6 @@ public abstract class TestBase {
 
     @LocalServerPort
     protected int serverPort = -1;
-
-    @BeforeAll
-    static void activateAccessLog() {
-        System.setProperty("reactor.netty.http.server.accessLogEnabled", "true");
-    }
 
     @BeforeEach
     void setup() {

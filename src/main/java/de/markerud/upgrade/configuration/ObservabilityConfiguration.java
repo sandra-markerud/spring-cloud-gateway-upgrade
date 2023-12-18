@@ -57,6 +57,11 @@ public class ObservabilityConfiguration {
                 .doOnConnection(conn -> conn.addHandlerFirst(new LogbookServerHandler(logbook)));
     }
 
+    @Bean
+    NettyServerCustomizer enableAccessLogCustomizer() {
+        return server -> server.accessLog(true);
+    }
+
     /**
      * Configures the global {@link HttpClient} so outgoing requests and incoming responses are
      * logged by [Logbook] and traceId and spanId are visible within these logs.
