@@ -1,21 +1,36 @@
 package de.markerud.upgrade.configuration
 
-import brave.http.HttpTracing
+import io.micrometer.context.ContextRegistry
+import io.micrometer.context.ContextSnapshotFactory
+import io.micrometer.observation.ObservationRegistry
+import io.micrometer.observation.contextpropagation.ObservationThreadLocalAccessor
+import io.micrometer.tracing.Tracer
+import io.micrometer.tracing.contextpropagation.ObservationAwareSpanThreadLocalAccessor
+import jakarta.annotation.PostConstruct
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import reactor.netty.http.brave.ReactorNettyHttpTracing
-import reactor.netty.http.client.HttpClient
-import reactor.netty.http.server.HttpServer
+import reactor.core.publisher.Hooks
+import reactor.netty.Metrics
 
 @Configuration
-class TracingConfiguration {
+class TracingConfiguration(
+    private val observationRegistry: ObservationRegistry,
+    private val tracer: Tracer
+) {
 
-    /**
-     * Creates a tracing object for adding spanIds and traceIds to [HttpClient] and
-     * [HttpServer] logs.
-     */
+    @PostConstruct
+    fun postConstruct() {
+        Hooks.enableAutomaticContextPropagation()
+        ContextRegistry.getInstance().registerThreadLocalAccessor(
+            ObservationAwareSpanThreadLocalAccessor(tracer)
+        )
+        ObservationThreadLocalAccessor.getInstance().observationRegistry =
+            observationRegistry
+        Metrics.observationRegistry(observationRegistry)
+    }
+
     @Bean
-    fun reactorNettyHttpTracing(httpTracing: HttpTracing): ReactorNettyHttpTracing =
-        ReactorNettyHttpTracing.create(httpTracing)
+    fun contextSnapshotFactory(): ContextSnapshotFactory =
+        ContextSnapshotFactory.builder().build()
 
 }

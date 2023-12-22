@@ -14,11 +14,13 @@ import org.mockserver.model.HttpRequest.request
 import org.mockserver.model.HttpResponse.response
 import org.mockserver.springtest.MockServerTest
 import org.slf4j.LoggerFactory
+import org.springframework.boot.test.autoconfigure.actuate.observability.AutoConfigureObservability
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment
 import org.springframework.boot.test.web.server.LocalServerPort
 import org.zalando.logbook.Logbook
 
+@AutoConfigureObservability
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 @MockServerTest("MOCK_BACKEND=http://localhost:\${mockServerPort}")
 @Suppress("SpringBootApplicationProperties", "unused")

@@ -1,61 +1,46 @@
 package de.markerud.upgrade.configuration
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import io.micrometer.context.ContextSnapshotFactory
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.autoconfigure.web.reactive.function.client.ReactorNettyHttpClientMapper
 import org.springframework.cloud.gateway.config.HttpClientCustomizer
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.http.client.reactive.ReactorClientHttpConnector
 import org.springframework.web.reactive.function.client.WebClient
 import org.zalando.logbook.Logbook
 import org.zalando.logbook.netty.LogbookClientHandler
-import reactor.netty.http.brave.ReactorNettyHttpTracing
-import reactor.netty.http.client.HttpClient
+import reactor.netty.Connection
 
 @Configuration
-class ClientConfiguration {
+class ClientConfiguration(
+    @Value("\${logbook.filter.enabled:false}") private val logbookEnabled: Boolean,
+    private val contextSnapshotFactory: ContextSnapshotFactory,
+    private val logbook: Logbook
+) {
 
     @Bean
-    fun nettyClientTracingCustomizer(
-        reactorNettyHttpTracing: ReactorNettyHttpTracing
-    ): HttpClientCustomizer = HttpClientCustomizer { client ->
-        reactorNettyHttpTracing.decorateHttpClient(client)
+    fun reactorNettyHttpClientMapper() = ReactorNettyHttpClientMapper {
+        it.doOnConnected { connection: Connection ->
+            connection.addHandlerLast(tracingChannelDuplexHandler())
+        }
     }
 
     @Bean
-    @ConditionalOnProperty(value = ["logbook.filter.enabled"], havingValue = "true")
-    fun nettyClientLogbookCustomizer(logbook: Logbook): HttpClientCustomizer =
-        HttpClientCustomizer { client ->
-            client.doOnConnected { connection ->
-                connection.addHandlerLast(LogbookClientHandler(logbook))
-            }
+    fun httpClientCustomizer(
+        contextSnapshotFactory: ContextSnapshotFactory
+    ): HttpClientCustomizer = HttpClientCustomizer {
+        it.doOnConnected { connection: Connection ->
+            connection.addHandlerLast(tracingChannelDuplexHandler())
         }
+    }
 
     @Bean
-    @ConditionalOnProperty(
-        value = ["logbook.filter.enabled"],
-        havingValue = "false",
-        matchIfMissing = true
-    )
-    fun defaultWebClient(webClientBuilder: WebClient.Builder): WebClient =
+    fun webClient(webClientBuilder: WebClient.Builder): WebClient =
         webClientBuilder.build()
 
-    @Bean
-    @ConditionalOnProperty(value = ["logbook.filter.enabled"], havingValue = "true")
-    fun webClient(
-        logbook: Logbook,
-        reactorNettyHttpTracing: ReactorNettyHttpTracing
-    ): WebClient {
-        return WebClient.builder()
-            .clientConnector(
-                ReactorClientHttpConnector(
-                    reactorNettyHttpTracing.decorateHttpClient(
-                        HttpClient
-                            .create().doOnConnected { conn ->
-                                conn.addHandlerLast(LogbookClientHandler(logbook))
-                            })
-                )
-            )
-            .build()
+    private fun tracingChannelDuplexHandler(): TracingChannelDuplexHandler {
+        val delegate = if (logbookEnabled) LogbookClientHandler(logbook) else null
+        return TracingChannelDuplexHandler(delegate, contextSnapshotFactory)
     }
 
 }

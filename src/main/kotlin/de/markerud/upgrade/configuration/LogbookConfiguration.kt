@@ -5,7 +5,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.zalando.logbook.CorrelationId
-import org.zalando.logbook.DefaultCorrelationId
+import org.zalando.logbook.core.DefaultCorrelationId
 
 @Configuration
 @ConditionalOnProperty(value = ["logbook.filter.enabled"], havingValue = "true")

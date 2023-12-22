@@ -16,12 +16,12 @@ spring:
           filters:
             - RewritePath=/question-route, /question
 
-  sleuth:
-    enabled: true
+management:
+  tracing:
     propagation:
-      type: b3,w3c
-    reactor:
-      instrumentation-type: decorate_queues
+      consume: w3c,b3_multi
+      produce: w3c,b3_multi
+    enabled: true
 
 logbook:
   filter.enabled: true
