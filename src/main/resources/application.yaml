@@ -4,18 +4,6 @@ local:
   server:
     port: 8080
 
-spring:
-  cloud:
-    gateway:
-      routes:
-        - id: answer_route
-          uri: ${MOCK_BACKEND}
-          predicates:
-            - Path=/question-route
-            - Method=GET
-          filters:
-            - RewritePath=/question-route, /question
-
 management:
   tracing:
     propagation:
