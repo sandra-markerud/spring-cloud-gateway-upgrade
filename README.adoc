@@ -3,13 +3,11 @@
 
 == Rationale
 
-This project aims to show the problems we are facing with logging and tracing when upgrading to spring boot 3 in a reactive environment using netty.
+This project aims to show the problems we faced with spring-cloud-gateway and related dependencies since upgrading to spring-boot-version 3.x
 
 == Getting started
 
 === Build
-
-The 'main' branch contains the functioning spring-boot-2 version including tests that show our expectations.
 
 [source,bash]
 ----
@@ -25,26 +23,28 @@ To locally run the application, use the following command:
 mvn spring-boot:run
 ----
 
-For local tests, a mockserver can be started with the provided docker-compose file.
-It simulates a backend-service, that will be accessed by our application.
+The application starts on port 7000, the actuator endpoints are available under port 7010.
+
+For local tests, a mockserver (simulating a backend-service) and keycloak can be started with the provided docker-compose file.
 
 [source,bash]
 ----
-docker-compose -f ./docker/docker-compose.yaml up
+docker-compose -f ./tooling/docker-compose.yaml up
 ----
 
-The mockserver can be reached via http://localhost:1080 and exposes a dashboard to monitor all requests is available via http://localhost:1080/mockserver/dashboard[Mockserver Dashboard].
+The mockserver can be reached via http://localhost:7030 and exposes a dashboard to monitor all requests is available via http://localhost:7030/mockserver/dashboard[Mockserver Dashboard].
 
-This application exposes a gateway route that can be called with
+The keycloak can be reached via http://localhost:7020.
+The following users are available within the keycloak:
 
-[source,bash]
-----
-curl http://localhost:8080/question-route
-----
+|===
+|Username | Password
 
-This application exposes a REST endpoint that can be called with
+|admin
+|admin
 
-[source,bash]
-----
-curl http://localhost:8080/question-controller
-----
+|testuser
+|test1234
+|===
+
+Some example requests are available link:./tooling/requests.http[here].

@@ -1,9 +1,0 @@
-services:
-
-  mock_server:
-    image: mockserver/mockserver:5.15.0
-    container_name: mockserver
-    volumes:
-      - ./mockserver:/config
-    ports:
-      - "1080:1080"

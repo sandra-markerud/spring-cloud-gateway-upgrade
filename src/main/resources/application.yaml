@@ -1,10 +1,41 @@
-MOCK_BACKEND: http://localhost:1080
+server:
+  port: 7000
+  ssl:
+    enabled: false
 
-local:
-  server:
-    port: 8080
+MOCK_BACKEND: http://localhost:7030
+
+spring:
+  application:
+    name: test-application
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:7020/realms/dev
+  cloud:
+    gateway:
+      routes:
+        - id: answer_route
+          uri: ${MOCK_BACKEND}
+          predicates:
+            - Path=/question-route
+            - Method=GET
+          filters:
+            - RewritePath=/question-route,/question
+        - id: remove-request-header-route
+          uri: ${MOCK_BACKEND}
+          predicates:
+            - Path=/remove-request-header-protected,/remove-request-header-public
+            - Method=GET
+          filters:
+            - RemoveRequestHeader=x-remove-me
 
 management:
+  server:
+    port: 7010
+    ssl:
+      enabled: false
   tracing:
     propagation:
       consume: w3c,b3_multi
@@ -17,9 +48,8 @@ logbook:
 
 logging:
   level:
+    de.markerud.upgrade: DEBUG
     org.mockserver: WARN
     org.org.springframework.security: WARN
     org.springframework.cloud.gateway: WARN
     org.zalando.logbook: TRACE
-#    reactor.netty.http.client: DEBUG
-#    reactor.netty.http.server: DEBUG

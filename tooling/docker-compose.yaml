@@ -1,0 +1,24 @@
+services:
+
+  keycloak:
+    image: keycloak/keycloak:26.0.1
+    container_name: identity-provider
+    command:
+      - start-dev
+      - --import-realm
+    ports:
+      - "7020:8080"
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+    volumes:
+      - ./keycloak/impex:/opt/keycloak/data/import/
+      - ./keycloak/impex:/tmp/export
+
+  mockserver:
+    image: mockserver/mockserver:5.15.0
+    container_name: backend
+    volumes:
+      - ./mockserver:/config
+    ports:
+      - "7030:1080"

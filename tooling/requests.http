@@ -1,0 +1,29 @@
+### Get tokens
+POST http://localhost:7020/realms/dev/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type = password &
+client_id = admin-cli &
+username = testuser &
+password = test1234
+
+> {%
+    client.global.set("access_token", response.body.access_token);
+%}
+
+###
+GET localhost:7000/question-route
+
+###
+GET localhost:7000/question-controller
+
+###
+GET localhost:7000/remove-request-header-public
+X-Remove-Me: value-to-be-removed
+X-Keep-Me: value-to-be-kept
+
+###
+GET localhost:7000/remove-request-header-protected
+X-Remove-Me: value-to-be-removed
+X-Keep-Me: value-to-be-kept
+Authorization: Bearer {{access_token}}

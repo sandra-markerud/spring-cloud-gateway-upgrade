@@ -1,14 +1,15 @@
 package de.markerud.upgrade
 
 import org.assertj.core.api.Assertions.assertThat
+import org.awaitility.Awaitility.await
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import org.mockserver.model.HttpRequest
-import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT
+import org.springframework.test.context.TestPropertySource
+import java.time.Duration
 
-@SpringBootTest(
-    webEnvironment = RANDOM_PORT, properties = [
+@TestPropertySource(
+    properties = [
         "logbook.filter.enabled=false"
     ]
 )
@@ -18,6 +19,7 @@ class LogbookDisabledTest : AbstractTestBase() {
     @ValueSource(strings = ["/question-route", "/question-controller"])
     fun `trace and span IDs appear in application logs`(path: String) {
         sendRequest(path)
+
         assertThat(appender.list)
             .filteredOn { event -> event.loggerName == filterLogger.name }
             .hasSize(1)
@@ -36,27 +38,37 @@ class LogbookDisabledTest : AbstractTestBase() {
     @ValueSource(strings = ["/question-route", "/question-controller"])
     fun `access log is written`(path: String) {
         sendRequest(path)
-        assertThat(appender.list)
-            .filteredOn { event -> event.loggerName == accessLogLogger.name }
-            .hasSize(1)
+
+        await()
+            .atMost(Duration.ofSeconds(1))
+            .untilAsserted {
+                assertThat(appender.list)
+                    .filteredOn { event -> event.loggerName == accessLogLogger.name }
+                    .hasSize(1)
+            }
     }
 
     @ParameterizedTest
     @ValueSource(strings = ["/question-route", "/question-controller"])
     fun `trace and span IDs appear in access log`(path: String) {
         sendRequest(path)
-        assertThat(appender.list)
-            .filteredOn { event -> event.loggerName.equals(accessLogLogger.name) }
-            .hasSize(1)
-            .singleElement()
-            .matches(
-                { event -> event.mdcPropertyMap.containsKey("traceId") },
-                "expected access log to contain traceId"
-            )
-            .matches(
-                { event -> event.mdcPropertyMap.containsKey("spanId") },
-                "expected access log to contain spanId"
-            )
+
+        await()
+            .atMost(Duration.ofSeconds(1))
+            .untilAsserted {
+                assertThat(appender.list)
+                    .filteredOn { event -> event.loggerName.equals(accessLogLogger.name) }
+                    .hasSize(1)
+                    .singleElement()
+                    .matches(
+                        { event -> event.mdcPropertyMap.containsKey("traceId") },
+                        "expected access log to contain traceId"
+                    )
+                    .matches(
+                        { event -> event.mdcPropertyMap.containsKey("spanId") },
+                        "expected access log to contain spanId"
+                    )
+            }
     }
 
     @ParameterizedTest
@@ -71,7 +83,8 @@ class LogbookDisabledTest : AbstractTestBase() {
     @ParameterizedTest
     @ValueSource(strings = ["/question-route", "/question-controller"])
     fun `tracing headers are sent to downstream services`(path: String) {
-        val sentRequest: HttpRequest = sendRequest(path)
+        sendRequest(path)
+        val sentRequest: HttpRequest = BACKEND.recordedRequest()
 
         // propagation type 'w3c'
         assertThat(sentRequest.containsHeader("traceparent"))
