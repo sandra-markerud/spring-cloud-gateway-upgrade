@@ -5,20 +5,20 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.3.4</version>
+        <version>3.4.1</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>de.markerud</groupId>
     <artifactId>spring-cloud-gateway-upgrade</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>spring-cloud-gateway-upgrade</name>
-    <description>Demo project for logging and tracing</description>
+    <description>Demo project for spring-cloud-gateway related issues</description>
 
     <properties>
         <java.version>17</java.version>
-        <kotlin.version>2.0.21</kotlin.version>
-        <spring-cloud.version>2023.0.3</spring-cloud.version>
-        <logbook.version>3.9.0</logbook.version>
+        <kotlin.version>2.1.0</kotlin.version>
+        <spring-cloud.version>2024.0.0</spring-cloud.version>
+        <logbook.version>3.10.0</logbook.version>
         <mockserver.version>5.15.0</mockserver.version>
     </properties>
 
